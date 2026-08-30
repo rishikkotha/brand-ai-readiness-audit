@@ -7,27 +7,31 @@ from datetime import datetime, timezone
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../crawl-render-audit/scripts')))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../engagement-audit/scripts')))
 
-# Import all three field inspectors
+# Import all six field inspectors
 from check_structured_data import audit_json_ld
 from check_render_gap import audit_render_gap
+from check_category_signals import audit_category_signals
+from check_freshness import audit_freshness_signals
 from check_orientation import audit_orientation
+from check_context_retention import audit_context_retention
 
 def run_orchestrator(url):
     findings = []
     
     # 1. Trigger Discoverability Checks
-    ld_result = audit_json_ld(url)
-    if "id" in ld_result:
-        findings.append(ld_result)
-        
-    render_result = audit_render_gap(url)
-    if "id" in render_result:
-        findings.append(render_result)
-
-    # 2. Trigger Engagement Check
-    orientation_result = audit_orientation(url)
-    if "id" in orientation_result:
-        findings.append(orientation_result)
+    audits = [
+        audit_json_ld(url),
+        audit_render_gap(url),
+        audit_category_signals(url),
+        audit_freshness_signals(url),
+        audit_orientation(url),
+        audit_context_retention(url)
+    ]
+    
+    # 2. Filter for actual issues (ignore "Passed" checks)
+    for result in audits:
+        if "id" in result or "error" in result:
+            findings.append(result)
 
     # 3. Calculate Severity Totals
     severity_counts = {"critical": 0, "high": 0, "medium": 0}
@@ -36,7 +40,7 @@ def run_orchestrator(url):
         if sev in severity_counts:
             severity_counts[sev] += 1
 
-    # 4. Inject Proactive Recommendations (Rubric Requirement)
+    # 4. Inject Proactive Recommendations
     proactive_actions = [
         {
             "summary": "Even if orientation tags exist, ensure dynamic user context from AI referrals is explicitly retained on the landing page to minimize bounce risk.",
