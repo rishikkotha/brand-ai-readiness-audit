@@ -12,7 +12,7 @@ def audit_context_retention(base_url):
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
             # Navigate to the URL with the intent parameter
-            page.goto(test_url, wait_until="networkidle", timeout=20000)
+            page.goto(test_url, wait_until="domcontentloaded", timeout=20000)
             
             # Extract all visible text on the rendered page
             page_text = page.evaluate("document.body.innerText").lower()
