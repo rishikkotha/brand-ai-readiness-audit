@@ -10,6 +10,10 @@
     {
       "id": "crawl-render-audit",
       "path": "skills/crawl-render-audit"
+    },
+    {
+      "id": "engagement-audit",
+      "path": "skills/engagement-audit"
     }
   ]
 }
