@@ -69,6 +69,6 @@ def run_orchestrator(url):
     return report
 
 if __name__ == "__main__":
-    target_url = "https://en.wikipedia.org/wiki/Running_shoe"
+    target_url = "https://fello.ai"
     final_report = run_orchestrator(target_url)
     print(json.dumps(final_report, indent=2))
