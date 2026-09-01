@@ -1,69 +1,81 @@
+from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
-import json
 
-def audit_category_signals(url, target_category_keywords=None):
-    """
-    Audits whether the page contains explicit category-level semantic signals
-    in <title>, <meta description>, <h1>, and JSON-LD markup to prevent AI omission.
-    """
-    if target_category_keywords is None:
-        # Default common category descriptor tokens if none provided
-        target_category_keywords = ["product", "shop", "collection", "service", "pricing", "guide", "reviews"]
+def audit_category_signals(url):
+    # 1. Parse URL to determine page typology (broad storefront vs. specific category)
+    parsed_url = urlparse(url)
+    is_homepage = parsed_url.path in ['', '/']
 
+    # 2. Scrape the page for semantic signals (Title and H1)
+    has_category_keywords = False
     headers = {'User-Agent': 'Mozilla/5.0 (AI Readiness Auditor)'}
+    
     try:
         response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        return {"error": str(e), "severity": "high"}
-
-    soup = BeautifulSoup(response.text, 'html.parser')
-    
-    # 1. Extract high-priority semantic zones
-    title_text = soup.title.string.lower() if soup.title and soup.title.string else ""
-    meta_desc = ""
-    meta_tag = soup.find('meta', attrs={'name': 'description'}) or soup.find('meta', attrs={'property': 'og:description'})
-    if meta_tag and meta_tag.get('content'):
-        meta_desc = meta_tag['content'].lower()
-    
-    h1_text = " ".join([h.get_text().lower() for h in soup.find_all('h1')])
-    
-    # 2. Check for explicit JSON-LD entity definitions
-    json_ld_scripts = soup.find_all('script', type='application/ld+json')
-    has_category_schema = False
-    for script in json_ld_scripts:
-        try:
-            data = json.loads(script.string)
-            # Check for standard e-commerce / service entity types
-            types = ["Product", "ItemList", "CollectionPage", "OfferCatalog", "Organization", "LocalBusiness"]
-            if any(t in str(data) for t in types):
-                has_category_schema = True
-                break
-        except Exception:
-            continue
-
-    # 3. Analyze semantic coverage
-    found_keywords = [kw for kw in target_category_keywords if kw in title_text or kw in meta_desc or kw in h1_text]
-    
-    if not has_category_schema and len(found_keywords) == 0:
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            title = soup.title.string.lower() if soup.title else ""
+            h1_tags = [h1.get_text().lower() for h1 in soup.find_all('h1')]
+            
+            # Placeholder for your specific keyword matching logic.
+            # Assuming it evaluates to False if explicit product terms are missing.
+            page_text = title + " ".join(h1_tags)
+            if "product" in page_text or "shoes" in page_text: # Example condition
+                has_category_keywords = True
+                
+    except Exception as e:
         return {
-            "id": "F-003",
-            "title": "Category-Level Semantic Omission",
-            "severity": "high",
-            "evidence": f"Scanned {url}; missing explicit Category/Product Schema and semantic keywords in <title>, <h1>, and <meta description>.",
+            "id": "F-003-ERR",
+            "title": "Category Audit Failed",
+            "severity": "medium",
+            "evidence": f"Failed to fetch page data: {str(e)}",
             "suggested_action": {
-                "summary": "Incorporate explicit category entity terms into primary HTML headings and deploy Product/ItemList Schema.org markup to be surfaced in category-level AI queries.",
-                "priority": "high"
+                "summary": "Ensure URL is accessible to crawling bots.",
+                "priority": "medium"
             }
         }
 
+    # 3. Apply Context-Aware Routing Logic
+    if not has_category_keywords:
+        if is_homepage:
+            # The Adaptive Warning for Homepages
+            return {
+                "id": "F-003-A",
+                "title": "Homepage Semantic Ambiguity",
+                "severity": "medium", 
+                "evidence": f"URL {url} is a root homepage missing explicit product keywords.",
+                "suggested_action": {
+                    "summary": "Context Rule: If this is a multi-category marketplace, broad thematic messaging is acceptable. If this is a single-category brand, you must inject your core product type into the H1 for AI discoverability.",
+                    "priority": "medium"
+                }
+            }
+        else:
+            # The Strict Error for specific product pages
+            return {
+                "id": "F-003",
+                "title": "Category-Level Semantic Omission",
+                "severity": "high",
+                "evidence": "Missing critical explicit category terms in <title> and <h1>.",
+                "suggested_action": {
+                    "summary": "Incorporate explicit category entity terms into primary HTML headings.",
+                    "priority": "high"
+                }
+            }
+    
+    # 4. Pass Condition
     return {
-        "status": "Passed",
-        "evidence": f"Found valid entity Schema: {has_category_schema}, matched category descriptors: {len(found_keywords)}."
+        "id": "P-003",
+        "title": "Category Semantics Passed",
+        "severity": "low",
+        "evidence": "Explicit category keywords found in primary HTML elements.",
+        "suggested_action": {
+            "summary": "Maintain current semantic HTML structure.",
+            "priority": "low"
+        }
     }
 
 if __name__ == "__main__":
-    test_url = "https://example.com"
-    result = audit_category_signals(test_url)
-    print(json.dumps(result, indent=2))
+    import json
+    # Quick local test for a homepage
+    print(json.dumps(audit_category_signals("https://www.myntra.com/"), indent=2))
