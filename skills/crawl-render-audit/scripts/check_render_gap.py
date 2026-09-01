@@ -18,7 +18,7 @@ def audit_render_gap(url):
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         try:
-            page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            page.goto(url, wait_until="domcontentloaded", timeout=45000)
             dynamic_text = len(page.evaluate("document.body.innerText"))
         except Exception as e:
             browser.close()
