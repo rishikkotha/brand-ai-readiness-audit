@@ -15,6 +15,7 @@ from check_freshness import audit_freshness_signals
 from check_orientation import audit_orientation
 from check_context_retention import audit_context_retention
 from check_hallucination_guardrails import audit_hallucination_guardrails
+from suggest_geo_keywords import suggest_geo_keywords
 
 def run_orchestrator(url):
     findings = []
@@ -27,7 +28,8 @@ def run_orchestrator(url):
         audit_freshness_signals(url),
         audit_orientation(url),
         audit_context_retention(url),
-        audit_hallucination_guardrails(url)
+        audit_hallucination_guardrails(url),
+        suggest_geo_keywords(url)
     ]
     
     # 2. Filter for actual issues (ignore "Passed" checks)
