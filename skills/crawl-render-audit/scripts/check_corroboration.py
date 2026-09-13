@@ -19,7 +19,6 @@ def audit_corroboration(url: str, static_html: str) -> dict:
             if parts and len(parts[0]) > 1:
                 extracted_name = parts[0].strip()
 
-        # Fallback to first <h1> if title extraction fails
         if not extracted_name:
             h1_match = re.search(r"<h1[^>]*>(.*?)</h1>", static_html, re.IGNORECASE | re.DOTALL)
             if h1_match:
@@ -29,7 +28,7 @@ def audit_corroboration(url: str, static_html: str) -> dict:
 
     parsed_domain = urlparse(url).netloc
 
-    # Fallback to domain name root
+
     if not extracted_name:
         domain_parts = parsed_domain.replace("www.", "").split(".")
         extracted_name = domain_parts[0].capitalize() if domain_parts else "Unknown Entity"

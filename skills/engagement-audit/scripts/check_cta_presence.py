@@ -4,7 +4,9 @@ from bs4 import BeautifulSoup
 CONVERSION_VERBS = re.compile(
     r"\b(get started|start free|free trial|book a demo|request demo|schedule (a )?demo|"
     r"schedule (a )?call|try for free|sign up|join (now|waitlist)|talk to sales|"
-    r"buy now|contact sales|get a quote|create account|get felix|get fello|start now)\b",
+    r"buy now|contact sales|get a quote|create account|start now|"
+    r"download|install|subscribe|get the app|add to cart|request a quote|"
+    r"learn more|see plans|view pricing)\b",
     re.I
 )
 

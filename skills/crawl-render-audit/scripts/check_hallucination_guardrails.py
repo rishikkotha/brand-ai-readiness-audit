@@ -1,10 +1,8 @@
 # skills/engagement-audit/scripts/check_hallucination_guardrails.py
 import re
 import json
-from urllib.parse import urlparse
 
 def audit_hallucination_guardrails(static_html: str, url: str = None) -> dict:
-    # 1. Check for physical HTML tables or definition lists
     has_tables = "<table" in (static_html or "").lower()
     has_dl = "<dl" in (static_html or "").lower()
     
@@ -52,30 +50,37 @@ def audit_hallucination_guardrails(static_html: str, url: str = None) -> dict:
             except Exception:
                 pass
 
-    # 3. Fail-safe Homepage bypass (URL must be explicitly provided and non-empty)
-    if url and isinstance(url, str) and url.strip():
-        parsed_path = urlparse(url).path
-        if parsed_path in ("", "/"):
-            return {
-                "id": "F-005",
-                "title": "Tabular Fact Disambiguation",
-                "status": "pass",
-                "evidence": {
-                    "has_tables": False,
-                    "has_dl": False,
-                    "context": "Homepage detected without tabular specs; structured catalog cards assumed."
-                }
-            }
+    plain_text = re.sub(r"<[^>]+>", " ", static_html or "")
+    plain_text = re.sub(r"\s+", " ", plain_text).strip()
 
-    # 4. Flag deep specification/product pages lacking structured facts
+    spec_like_matches = re.findall(
+        r"\$\d[\d,]*(?:\.\d+)?|\d+(?:\.\d+)?\s?(?:%|GB|TB|MB|Mbps|Gbps|kg|lb|oz|in|cm|mm|ms|fps|hrs?|hours?)\b",
+        plain_text,
+        re.I
+    )
+
     return {
         "id": "F-005",
         "title": "Tabular Fact Disambiguation",
-        "status": "finding",
-        "severity": "low",
-        "evidence": {"has_tables": False, "has_dl": False},
+        "status": "pending",
+        "requires_agent_synthesis": True,
+        "evidence": {
+            "has_tables": False,
+            "has_dl": False,
+            "json_ld_mitigation": False,
+            "spec_like_fact_count": len(spec_like_matches),
+            "spec_like_fact_sample": spec_like_matches[:8]
+        },
         "suggested_action": {
-            "summary": "Key specifications lack tabular containment (<table>, <dl>) or explicit JSON-LD entity schemas. Unstructured key-value pairs risk extraction hallucinations.",
-            "priority": "low"
+            "summary": (
+                "AGENT INSTRUCTION: No <table>, <dl>, or recognized JSON-LD entity schema was found. "
+                "Read spec_like_fact_sample and the page's evident purpose. If the page states few or no "
+                "specific numeric/spec facts (e.g. a marketing homepage with no pricing, dimensions, or "
+                "quantitative claims), overwrite status to 'pass' — there is nothing here that needs "
+                "disambiguation. If it states several such facts in plain prose with no structured "
+                "containment (e.g. a pricing or specs page), overwrite status to 'finding' and assign a "
+                "severity based on how many facts are at risk of extraction errors."
+            ),
+            "priority": "medium"
         }
     }
